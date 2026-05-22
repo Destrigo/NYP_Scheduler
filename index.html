@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NYP Scheduler</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;min-height:100vh}
+input,select,textarea,button{font-family:inherit}
+.scrollable{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* Grid */
+.week-grid{min-width:700px;border-collapse:collapse;width:100%}
+.week-grid th,.week-grid td{border:1px solid #e5e7eb;padding:4px 6px;font-size:13px;vertical-align:top}
+.week-grid th{background:#f9fafb;font-weight:600;text-align:center;position:sticky;top:0;z-index:2}
+.week-grid td.emp-col{position:sticky;left:0;background:#fff;z-index:1;min-width:120px;font-weight:500}
+.week-grid .totals-row td{background:#f0f9ff;font-weight:600;font-size:12px}
+/* Shift chip */
+.shift-chip{border-radius:6px;padding:3px 6px;font-size:11px;font-weight:600;cursor:pointer;display:block;margin:2px 0;text-align:center;white-space:nowrap}
+.shift-chip.Manager{background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe}
+.shift-chip.PizzaMaker{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+.shift-chip.Rider{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+.shift-chip.off{background:#f3f4f6;color:#9ca3af;border:1px dashed #d1d5db}
+.warn-badge{background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:4px;font-size:10px;padding:1px 4px;margin-top:2px;display:block}
+/* Cards */
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:16px}
+.metric-card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* Nav */
+.sidebar{width:220px;background:#111827;min-height:100vh;display:flex;flex-direction:column;padding:16px 0;flex-shrink:0}
+.sidebar .logo{color:#fff;font-weight:700;font-size:18px;padding:8px 20px 20px}
+.sidebar a,.sidebar button.nav-btn{display:flex;align-items:center;gap:10px;padding:10px 20px;color:#9ca3af;font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;width:100%;text-align:left;text-decoration:none;transition:background .15s}
+.sidebar a:hover,.sidebar button.nav-btn:hover,.sidebar a.active,.sidebar button.nav-btn.active{background:#1f2937;color:#fff;border-radius:0}
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#111827;padding:8px 0 env(safe-area-inset-bottom);z-index:50;border-top:1px solid #374151}
+.bottom-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px;color:#9ca3af;background:none;border:none;cursor:pointer;font-size:10px;font-weight:500}
+.bottom-nav button.active{color:#60a5fa}
+/* Layout */
+.app-layout{display:flex;min-height:100vh}
+.main-content{flex:1;padding:20px;overflow:auto;max-width:100%}
+/* Inputs */
+.form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+label{font-size:13px;font-weight:500;color:#374151}
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],input[type=time],select,textarea{border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:14px;outline:none;width:100%;background:#fff}
+input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
+/* Buttons */
+.btn{padding:9px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s}
+.btn:hover{opacity:.88}
+.btn-primary{background:#6366f1;color:#fff}
+.btn-secondary{background:#e5e7eb;color:#374151}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-success{background:#22c55e;color:#fff}
+.btn-sm{padding:5px 12px;font-size:12px;border-radius:6px}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h2{font-size:18px;font-weight:700;margin-bottom:16px}
+/* Progress bar */
+.progress-bar{background:#e5e7eb;border-radius:99px;height:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:99px;background:#6366f1;transition:width .3s}
+/* Table */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:#f9fafb;padding:8px 12px;text-align:left;font-weight:600;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid #e5e7eb}
+.data-table td{padding:10px 12px;border-bottom:1px solid #f3f4f6}
+.data-table tr:hover td{background:#f9fafb}
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-red{background:#fee2e2;color:#b91c1c}
+.badge-green{background:#dcfce7;color:#15803d}
+.badge-gray{background:#f3f4f6;color:#6b7280}
+.badge-yellow{background:#fef3c7;color:#92400e}
+.badge-purple{background:#ede9fe;color:#6d28d9}
+/* Alert */
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.alert-error{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+.alert-info{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
+.alert-success{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+/* Responsive */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .bottom-nav{display:flex}
+  .main-content{padding:12px;padding-bottom:80px}
+  .desktop-only{display:none}
+}
+@media(min-width:769px){.bottom-nav{display:none}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useContext,createContext,useRef,useMemo,useCallback}=React;
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const STORES=[
+  {id:1,name:"Bilderdijkstraat",city:"Amsterdam"},
+  {id:2,name:"Blokmakersplaats",city:"Amsterdam"},
+  {id:3,name:"Buikslotermeerplein",city:"Amsterdam"},
+  {id:4,name:"Buitenveldertselaan",city:"Amsterdam"},
+  {id:5,name:"Burg. van Leeuwenlaan",city:"Amsterdam"},
+  {id:6,name:"Dotterbloemstraat",city:"Amsterdam"},
+  {id:7,name:"Jollemanhof",city:"Amsterdam"},
+  {id:8,name:"Linnaeustraat",city:"Amsterdam"},
+  {id:9,name:"Middenmolenplein",city:"Amsterdam"},
+  {id:10,name:"Molenwijk",city:"Amsterdam"},
+  {id:11,name:"Pieter Calandlaan",city:"Amsterdam"},
+  {id:12,name:"Van Limburg Stirumstraat",city:"Amsterdam"},
+  {id:13,name:"Vuurdoornlaan",city:"Amsterdam"},
+  {id:14,name:"Deurningerstraat",city:"Enschede"},
+  {id:15,name:"Wesseler-nering",city:"Enschede"},
+  {id:16,name:"Windmolenbroeksweg",city:"Enschede"},
+];
+const DEFAULT_STORE_SETTINGS={opening_time:"11:00",closing_time:"23:00",operating_days:[1,2,3,4,5,6,0]};
+const SHIFT_ROLES=["Manager","PizzaMaker","Rider"];
+const USER_ROLES=["employee","store_manager","backoffice","superadmin"];
+const CONTRACT_TYPES=["hourly","fixed"];
+const LABOR_WARNING_PCT=35;
+
+function uuid(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:r&0x3|0x8).toString(16)})}
+function today(){return new Date().toISOString().slice(0,10)}
+function getMonday(d){const dt=new Date(d);const day=dt.getDay();const diff=dt.getDate()-day+(day===0?-6:1);return new Date(dt.setDate(diff)).toISOString().slice(0,10)}
+function addDays(dateStr,n){const d=new Date(dateStr);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function timeToMin(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);return h*60+m}
+function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function workedHours(start,end,brk=0){const diff=timeToMin(end)-timeToMin(start)-brk;return Math.max(0,diff/60)}
+function fmtDate(dateStr){return new Date(dateStr+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}
+function fmtDateShort(dateStr){return new Date(dateStr+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'numeric'})}
+function getAge(dob){if(!dob)return 99;const today2=new Date();const b=new Date(dob);let age=today2.getFullYear()-b.getFullYear();if(today2<new Date(today2.getFullYear(),b.getMonth(),b.getDate()))age--;return age}
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+const SK={employees:'nyp_employees',shifts:'nyp_shifts',revenues:'nyp_revenues',weekStatus:'nyp_weekstatus',storeSettings:'nyp_storeSettings'};
+function load(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def}catch{return def}}
+function save(key,val){localStorage.setItem(key,JSON.stringify(val))}
+
+// ─── SEED DATA ────────────────────────────────────────────────────────────────
+function seedIfEmpty(){
+  const existing=load(SK.employees,[]);
+  if(existing.length>0)return;
+  const employees=[
+    {id:uuid(),first_name:"Admin",last_name:"Super",email:"admin@nyp.nl",password:"admin123",phone:"+31612345678",date_of_birth:"1985-01-01",role:"Manager",contract_type:"fixed",contract_hours_per_week:40,hourly_rate:25,store_id:1,user_role:"superadmin",is_active:true},
+    {id:uuid(),first_name:"Marco",last_name:"Rossi",email:"manager@nyp.nl",password:"manager123",phone:"+31612345679",date_of_birth:"1990-03-15",role:"Manager",contract_type:"fixed",contract_hours_per_week:40,hourly_rate:20,store_id:1,user_role:"store_manager",is_active:true},
+    {id:uuid(),first_name:"Sophie",last_name:"de Vries",email:"backoffice@nyp.nl",password:"back123",phone:"+31612345680",date_of_birth:"1992-07-22",role:"PizzaMaker",contract_type:"hourly",contract_hours_per_week:24,hourly_rate:14,store_id:1,user_role:"backoffice",is_active:true},
+    {id:uuid(),first_name:"Ahmed",last_name:"Khalil",email:"ahmed@nyp.nl",password:"emp123",phone:"+31612345681",date_of_birth:"1998-05-10",role:"PizzaMaker",contract_type:"hourly",contract_hours_per_week:24,hourly_rate:13.5,store_id:1,user_role:"employee",is_active:true},
+    {id:uuid(),first_name:"Lisa",last_name:"Bakker",email:"lisa@nyp.nl",password:"emp123",phone:"+31612345682",date_of_birth:"2007-09-01",role:"Rider",contract_type:"hourly",contract_hours_per_week:12,hourly_rate:12,store_id:1,user_role:"employee",is_active:true},
+    {id:uuid(),first_name:"Tom",last_name:"Janssen",email:"tom@nyp.nl",password:"emp123",phone:"+31612345683",date_of_birth:"2009-04-20",role:"Rider",contract_type:"hourly",contract_hours_per_week:8,hourly_rate:11.5,store_id:1,user_role:"employee",is_active:true},
+    {id:uuid(),first_name:"Fatima",last_name:"El Amrani",email:"fatima@nyp.nl",password:"emp123",phone:"+31612345684",date_of_birth:"1995-12-03",role:"PizzaMaker",contract_type:"hourly",contract_hours_per_week:32,hourly_rate:14.5,store_id:2,user_role:"store_manager",is_active:true},
+  ];
+  save(SK.employees,employees);
+}
+
+// ─── AUTH CONTEXT ─────────────────────────────────────────────────────────────
+const AuthCtx=createContext(null);
+function useAuth(){return useContext(AuthCtx)}
+function AuthProvider({children}){
+  const[user,setUser]=useState(()=>{
+    try{const s=sessionStorage.getItem('nyp_user');return s?JSON.parse(s):null}catch{return null}
+  });
+  function login(email,password){
+    const emps=load(SK.employees,[]);
+    const found=emps.find(e=>e.email===email&&e.password===password&&e.is_active);
+    if(!found)return false;
+    sessionStorage.setItem('nyp_user',JSON.stringify(found));
+    setUser(found);
+    return true;
+  }
+  function logout(){sessionStorage.removeItem('nyp_user');setUser(null)}
+  function refreshUser(){
+    if(!user)return;
+    const emps=load(SK.employees,[]);
+    const fresh=emps.find(e=>e.id===user.id);
+    if(fresh){sessionStorage.setItem('nyp_user',JSON.stringify(fresh));setUser(fresh)}
+  }
+  return <AuthCtx.Provider value={{user,login,logout,refreshUser}}>{children}</AuthCtx.Provider>
+}
+
+// ─── STORE SETTINGS HELPER ────────────────────────────────────────────────────
+function getStoreSettings(storeId){
+  const all=load(SK.storeSettings,{});
+  return all[storeId]||{...DEFAULT_STORE_SETTINGS};
+}
+function saveStoreSettings(storeId,settings){
+  const all=load(SK.storeSettings,{});
+  all[storeId]=settings;
+  save(SK.storeSettings,all);
+}
+
+// ─── MINOR RESTRICTION CHECK ──────────────────────────────────────────────────
+function checkMinorViolation(employee,endTime){
+  if(!employee||!endTime)return null;
+  const age=getAge(employee.date_of_birth);
+  const endMin=timeToMin(endTime);
+  if(age<16&&endMin>timeToMin("20:00"))return `${employee.first_name} is under 16 and cannot work past 20:00`;
+  if(age<18&&endMin>timeToMin("22:00"))return `${employee.first_name} is under 18 and cannot work past 22:00`;
+  return null;
+}
+
+// ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
+function LoginPage(){
+  const{login}=useAuth();
+  const[email,setEmail]=useState('');
+  const[pw,setPw]=useState('');
+  const[err,setErr]=useState('');
+  function handleSubmit(e){
+    e.preventDefault();
+    if(!login(email,pw))setErr('Invalid email or password');
+  }
+  return(
+    <div style={{minHeight:'100vh',background:'#111827',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div style={{background:'#fff',borderRadius:16,padding:32,width:'100%',maxWidth:380,boxShadow:'0 20px 60px rgba(0,0,0,.3)'}}>
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <div style={{fontSize:32,fontWeight:800,color:'#111827',letterSpacing:-1}}>NYP</div>
+          <div style={{color:'#6b7280',fontSize:14}}>Shift Scheduler</div>
+        </div>
+        {err&&<div className="alert alert-error">{err}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" value={email} onChange={e=>{setEmail(e.target.value);setErr('')}} required autoFocus/>
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr('')}} required/>
+          </div>
+          <button type="submit" className="btn btn-primary" style={{width:'100%',marginTop:8}}>Sign in</button>
+        </form>
+        <div style={{marginTop:20,fontSize:12,color:'#9ca3af',textAlign:'center'}}>
+          <strong>Demo accounts:</strong><br/>
+          admin@nyp.nl / admin123 (Super Admin)<br/>
+          manager@nyp.nl / manager123 (Store Manager)<br/>
+          backoffice@nyp.nl / back123 (Back Office)<br/>
+          ahmed@nyp.nl / emp123 (Employee)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function NavIcon({name}){
+  const icons={
+    schedule:'📅',hours:'⏱',revenue:'💰',dashboard:'📊',users:'👥',stores:'🏪',overview:'🏠',settings:'⚙️'
+  };
+  return <span>{icons[name]||'•'}</span>
+}
+function Sidebar({tabs,activeTab,setTab,user,logout}){
+  return(
+    <nav className="sidebar">
+      <div className="logo">🍕 NYP</div>
+      {tabs.map(t=>(
+        <button key={t.id} className={`nav-btn${activeTab===t.id?' active':''}`} onClick={()=>setTab(t.id)}>
+          <NavIcon name={t.icon}/> {t.label}
+        </button>
+      ))}
+      <div style={{flex:1}}/>
+      <div style={{padding:'8px 20px',color:'#6b7280',fontSize:12,borderTop:'1px solid #1f2937',marginTop:8,paddingTop:16}}>
+        <div style={{fontWeight:600,color:'#d1d5db'}}>{user.first_name} {user.last_name}</div>
+        <div style={{textTransform:'capitalize'}}>{user.user_role.replace('_',' ')}</div>
+        <button onClick={logout} className="btn btn-sm" style={{marginTop:8,background:'#374151',color:'#9ca3af',width:'100%'}}>Sign out</button>
+      </div>
+    </nav>
+  );
+}
+function BottomNav({tabs,activeTab,setTab}){
+  return(
+    <div className="bottom-nav">
+      {tabs.map(t=>(
+        <button key={t.id} className={activeTab===t.id?'active':''} onClick={()=>setTab(t.id)}>
+          <NavIcon name={t.icon}/> {t.short||t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── SHIFT MODAL ──────────────────────────────────────────────────────────────
+function ShiftModal({shift,employee,date,storeId,onSave,onDelete,onClose}){
+  const settings=getStoreSettings(storeId);
+  const employees=load(SK.employees,[]).filter(e=>e.store_id===storeId&&e.is_active);
+  const[empId,setEmpId]=useState(shift?.employee_id||employee?.id||'');
+  const[role,setRole]=useState(shift?.role||employee?.role||'PizzaMaker');
+  const[shiftType,setShiftType]=useState('custom');
+  const[start,setStart]=useState(shift?.start_time||'12:00');
+  const[end,setEnd]=useState(shift?.end_time||'18:00');
+  const[brk,setBrk]=useState(shift?.break_minutes||0);
+  const[warn,setWarn]=useState('');
+
+  useEffect(()=>{
+    if(shiftType==='full'){setStart(settings.opening_time);setEnd(settings.closing_time)}
+    else if(shiftType==='opening'){setStart(settings.opening_time)}
+    else if(shiftType==='closing'){setEnd(settings.closing_time)}
+  },[shiftType]);
+
+  useEffect(()=>{
+    const emp=employees.find(e=>e.id===empId);
+    if(emp&&end){
+      const v=checkMinorViolation(emp,end);
+      setWarn(v||'');
+    }
+  },[empId,end]);
+
+  function handleSave(){
+    if(!empId||!start||!end){alert('Fill all fields');return}
+    const emp=employees.find(e=>e.id===empId);
+    if(emp&&warn){
+      const ok=confirm(warn+'\n\nThis shift cannot be saved due to minor age restrictions.');
+      if(ok)return;
+      return;
+    }
+    if(timeToMin(end)<=timeToMin(start)){alert('End time must be after start time');return}
+    // Check double booking
+    const allShifts=load(SK.shifts,[]);
+    const sameDay=allShifts.filter(s=>s.employee_id===empId&&s.date===date&&s.id!==(shift?.id));
+    const newStart=timeToMin(start),newEnd=timeToMin(end);
+    const overlap=sameDay.find(s=>{
+      const ss=timeToMin(s.start_time),se=timeToMin(s.end_time);
+      return newStart<se&&newEnd>ss;
+    });
+    if(overlap){alert('Employee already has an overlapping shift on this day');return}
+    onSave({id:shift?.id||uuid(),employee_id:empId,store_id:storeId,date,start_time:start,end_time:end,break_minutes:Number(brk),role});
+  }
+
+  const hours=workedHours(start,end,Number(brk));
+  const emp=employees.find(e=>e.id===empId);
+  const cost=emp?hours*emp.hourly_rate:0;
+
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+      <div className="modal">
+        <h2>{shift?'Edit Shift':'Add Shift'} — {fmtDate(date)}</h2>
+        {warn&&<div className="alert alert-error">{warn}</div>}
+        <div className="form-group">
+          <label>Employee</label>
+          <select value={empId} onChange={e=>setEmpId(e.target.value)}>
+            <option value="">— select —</option>
+            {employees.map(e=>(
+              <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.role})</option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Shift Role</label>
+          <select value={role} onChange={e=>setRole(e.target.value)}>
+            {SHIFT_ROLES.map(r=><option key={r}>{r}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Shift Type</label>
+          <select value={shiftType} onChange={e=>setShiftType(e.target.value)}>
+            <option value="custom">Custom hours</option>
+            <option value="opening">Opening shift (start = store open)</option>
+            <option value="closing">Closing shift (end = store close)</option>
+            <option value="full">Full day (open → close)</option>
+          </select>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+          <div className="form-group">
+            <label>Start</label>
+            <input type="time" value={start} onChange={e=>setStart(e.target.value)} disabled={shiftType==='full'||shiftType==='opening'}/>
+          </div>
+          <div className="form-group">
+            <label>End</label>
+            <input type="time" value={end} onChange={e=>setEnd(e.target.value)} disabled={shiftType==='full'||shiftType==='closing'}/>
+          </div>
+          <div className="form-group">
+            <label>Break (min)</label>
+            <input type="number" value={brk} onChange={e=>setBrk(e.target.value)} min={0} max={120}/>
+          </div>
+        </div>
+        <div style={{background:'#f9fafb',borderRadius:8,padding:10,marginBottom:16,fontSize:13}}>
+          <strong>{hours.toFixed(1)}h</strong> worked · Cost: <strong>€{cost.toFixed(2)}</strong>
+        </div>
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+          {shift&&<button className="btn btn-danger btn-sm" onClick={()=>onDelete(shift.id)}>Delete</button>}
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={!!warn}>Save Shift</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WEEK GRID ────────────────────────────────────────────────────────────────
+function WeekGrid({storeId,weekStart,readOnly}){
+  const[shifts,setShifts]=useState(()=>load(SK.shifts,[]));
+  const[modal,setModal]=useState(null);
+  const[weekStatus,setWeekStatus]=useState(()=>load(SK.weekStatus,{}));
+  const weekKey=`${storeId}_${weekStart}`;
+  const status=weekStatus[weekKey]||'draft';
+  const days=Array.from({length:7},(_,i)=>addDays(weekStart,i));
+  const storeEmps=load(SK.employees,[]).filter(e=>e.store_id===storeId&&e.is_active).sort((a,b)=>a.first_name.localeCompare(b.first_name));
+  const storeShifts=shifts.filter(s=>s.store_id===storeId&&s.date>=weekStart&&s.date<=days[6]);
+  const settings=getStoreSettings(storeId);
+
+  function reloadShifts(){setShifts(load(SK.shifts,[]))}
+  function reloadStatus(){setWeekStatus(load(SK.weekStatus,{}))}
+
+  function getShift(empId,date){return storeShifts.find(s=>s.employee_id===empId&&s.date===date)}
+
+  function openModal(emp,date,shift){
+    if(readOnly&&!shift)return;
+    setModal({emp,date,shift:shift||null})
+  }
+
+  function saveShift(shiftData){
+    const all=load(SK.shifts,[]);
+    const idx=all.findIndex(s=>s.id===shiftData.id);
+    if(idx>=0)all[idx]=shiftData;else all.push(shiftData);
+    save(SK.shifts,all);
+    reloadShifts();
+    setModal(null);
+  }
+  function deleteShift(id){
+    const all=load(SK.shifts,[]).filter(s=>s.id!==id);
+    save(SK.shifts,all);
+    reloadShifts();
+    setModal(null);
+  }
+  function copyPrevWeek(){
+    if(!confirm('Copy previous week schedule? Existing shifts for this week will NOT be deleted.'))return;
+    const prevStart=addDays(weekStart,-7);
+    const all=load(SK.shifts,[]);
+    const prevShifts=all.filter(s=>s.store_id===storeId&&s.date>=prevStart&&s.date<=addDays(prevStart,6));
+    const newShifts=prevShifts.map(s=>{
+      const dayOffset=(new Date(s.date)-new Date(prevStart))/(86400000);
+      const newDate=addDays(weekStart,dayOffset);
+      const exists=all.find(x=>x.employee_id===s.employee_id&&x.date===newDate);
+      if(exists)return null;
+      return{...s,id:uuid(),date:newDate};
+    }).filter(Boolean);
+    save(SK.shifts,[...all,...newShifts]);
+    reloadShifts();
+  }
+  function togglePublish(){
+    const all=load(SK.weekStatus,{});
+    all[weekKey]=status==='draft'?'published':'draft';
+    save(SK.weekStatus,all);
+    reloadStatus();
+  }
+
+  // Daily totals
+  function getDayTotals(date){
+    const dayShifts=storeShifts.filter(s=>s.date===date);
+    const staffCount=dayShifts.length;
+    const totalHours=dayShifts.reduce((s,sh)=>s+workedHours(sh.start_time,sh.end_time,sh.break_minutes),0);
+    const totalCost=dayShifts.reduce((s,sh)=>{
+      const emp=storeEmps.find(e=>e.id===sh.employee_id);
+      return s+(emp?workedHours(sh.start_time,sh.end_time,sh.break_minutes)*emp.hourly_rate:0);
+    },0);
+    const hasManager=dayShifts.some(s=>s.role==='Manager');
+    return{staffCount,totalHours,totalCost,hasManager};
+  }
+
+  // Warnings per cell
+  function getCellWarnings(emp,date,shift){
+    if(!shift)return[];
+    const warns=[];
+    const minor=checkMinorViolation(emp,shift.end_time);
+    if(minor)warns.push('⚠️ Minor hours');
+    const weekShifts=storeShifts.filter(s=>s.employee_id===emp.id);
+    const weekHours=weekShifts.reduce((s,sh)=>s+workedHours(sh.start_time,sh.end_time,sh.break_minutes),0);
+    if(weekHours>emp.contract_hours_per_week)warns.push('⚠️ Over contract');
+    return warns;
+  }
+
+  return(
+    <div>
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginBottom:12}}>
+        <span className={`badge ${status==='published'?'badge-green':'badge-yellow'}`}>{status==='published'?'Published':'Draft'}</span>
+        {!readOnly&&(
+          <>
+            <button className="btn btn-secondary btn-sm" onClick={copyPrevWeek}>Copy Prev Week</button>
+            <button className={`btn btn-sm ${status==='draft'?'btn-success':'btn-secondary'}`} onClick={togglePublish}>
+              {status==='draft'?'Publish':'Unpublish'}
+            </button>
+          </>
+        )}
+      </div>
+      <div className="scrollable">
+        <table className="week-grid">
+          <thead>
+            <tr>
+              <th style={{textAlign:'left',minWidth:130}}>Employee</th>
+              {days.map(d=>(
+                <th key={d} style={{minWidth:100}}>
+                  <div>{new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short'})}</div>
+                  <div style={{fontSize:11,fontWeight:400,color:'#6b7280'}}>{new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'numeric'})}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {storeEmps.map(emp=>(
+              <tr key={emp.id}>
+                <td className="emp-col">
+                  <div>{emp.first_name} {emp.last_name}</div>
+                  <div style={{fontSize:11,color:'#9ca3af'}}>{emp.role} · {emp.contract_hours_per_week}h/w</div>
+                </td>
+                {days.map(d=>{
+                  const shift=getShift(emp.id,d);
+                  const warns=getCellWarnings(emp,d,shift);
+                  return(
+                    <td key={d} style={{cursor:readOnly?'default':'pointer',minWidth:100}} onClick={()=>openModal(emp,d,shift)}>
+                      {shift?(
+                        <>
+                          <span className={`shift-chip ${shift.role}`}>{shift.start_time}–{shift.end_time}</span>
+                          {warns.map((w,i)=><span key={i} className="warn-badge">{w}</span>)}
+                        </>
+                      ):(
+                        <span className="shift-chip off">{readOnly?'—':'+ Add'}</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            {/* Totals row */}
+            <tr className="totals-row">
+              <td>Totals</td>
+              {days.map(d=>{
+                const{staffCount,totalHours,totalCost,hasManager}=getDayTotals(d);
+                return(
+                  <td key={d}>
+                    <div>{staffCount} staff</div>
+                    <div>{totalHours.toFixed(1)}h</div>
+                    <div>€{totalCost.toFixed(0)}</div>
+                    {staffCount>0&&!hasManager&&<span className="warn-badge">⚠️ No manager</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {modal&&(
+        <ShiftModal
+          shift={modal.shift}
+          employee={modal.emp}
+          date={modal.date}
+          storeId={storeId}
+          onSave={saveShift}
+          onDelete={deleteShift}
+          onClose={()=>setModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── MANAGER VIEW ─────────────────────────────────────────────────────────────
+function ManagerView(){
+  const{user}=useAuth();
+  const[weekStart,setWeekStart]=useState(getMonday(today()));
+  const storeId=user.store_id;
+  const store=STORES.find(s=>s.id===storeId);
+
+  return(
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:8}}>
+        <div>
+          <h1 style={{fontSize:20,fontWeight:700}}>{store?.name}</h1>
+          <div style={{color:'#6b7280',fontSize:13}}>Weekly Schedule</div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setWeekStart(addDays(weekStart,-7))}>&larr; Prev</button>
+          <span style={{fontSize:13,fontWeight:600,minWidth:130,textAlign:'center'}}>
+            {fmtDateShort(weekStart)} – {fmtDateShort(addDays(weekStart,6))}
+          </span>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setWeekStart(addDays(weekStart,7))}>Next &rarr;</button>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setWeekStart(getMonday(today()))}>Today</button>
+        </div>
+      </div>
+      <div className="card">
+        <WeekGrid storeId={storeId} weekStart={weekStart} readOnly={false}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── EMPLOYEE VIEW ────────────────────────────────────────────────────────────
+function EmployeeView(){
+  const{user}=useAuth();
+  const[tab,setTab]=useState('schedule');
+  const allShifts=load(SK.shifts,[]);
+  const weekStatuses=load(SK.weekStatus,{});
+  const thisWeek=getMonday(today());
+  const nextWeek=addDays(thisWeek,7);
+
+  // Only show published shifts
+  function isPublished(date){
+    const wk=getMonday(date);
+    const key=`${user.store_id}_${wk}`;
+    return weekStatuses[key]==='published';
+  }
+
+  const myShifts=allShifts.filter(s=>s.employee_id===user.id&&isPublished(s.date));
+
+  function getWeekShifts(weekStartDate){
+    const end=addDays(weekStartDate,6);
+    return myShifts.filter(s=>s.date>=weekStartDate&&s.date<=end);
+  }
+
+  const thisWeekShifts=getWeekShifts(thisWeek);
+  const nextWeekShifts=getWeekShifts(nextWeek);
+  const weekHours=thisWeekShifts.reduce((s,sh)=>s+workedHours(sh.start_time,sh.end_time,sh.break_minutes),0);
+
+  // Monthly hours
+  const now=new Date();
+  const monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
+  const monthShifts=myShifts.filter(s=>s.date>=monthStart&&s.date<=monthEnd);
+  const monthHours=monthShifts.reduce((s,sh)=>s+workedHours(sh.start_time,sh.end_time,sh.break_minutes),0);
+  const monthlyContract=Math.round(user.contract_hours_per_week*52/12);
+
+  const manager=load(SK.employees,[]).find(e=>e.store_id===user.store_id&&e.user_role==='store_manager');
+
+  function WeekCard({weekStartDate,shifts}){
+    const days=Array.from({length:7},(_,i)=>addDays(weekStartDate,i));
+    return(
+      <div className="card" style={{marginBottom:12}}>
+        <div style={{fontWeight:600,marginBottom:10,fontSize:14,color:'#374151'}}>
+          {fmtDateShort(weekStartDate)} – {fmtDateShort(addDays(weekStartDate,6))}
+        </div>
+        {days.map(d=>{
+          const sh=shifts.find(s=>s.date===d);
+          return(
+            <div key={d} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid #f3f4f6'}}>
+              <div style={{minWidth:90,fontWeight:500,fontSize:13}}>{fmtDateShort(d).split(',')[0]}</div>
+              {sh?(
+                <div style={{flex:1}}>
+                  <span className={`shift-chip ${sh.role}`} style={{display:'inline-block'}}>
+                    {sh.start_time}–{sh.end_time} · {workedHours(sh.start_time,sh.end_time,sh.break_minutes).toFixed(1)}h
+                  </span>
+                </div>
+              ):(
+                <span style={{color:'#9ca3af',fontSize:13}}>Day off</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return(
+    <div>
+      <h1 style={{fontSize:20,fontWeight:700,marginBottom:4}}>My Schedule</h1>
+      <div style={{color:'#6b7280',fontSize:13,marginBottom:16}}>Welcome, {user.first_name}</div>
+      <div style={{display:'flex',gap:8,marginBottom:16}}>
+        <button className={`btn btn-sm ${tab==='schedule'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('schedule')}>Schedule</button>
+        <button className={`btn btn-sm ${tab==='hours'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('hours')}>My Hours</button>
+      </div>
+      {tab==='schedule'&&(
+        <>
+          <WeekCard weekStartDate={thisWeek} shifts={thisWeekShifts}/>
+          <WeekCard weekStartDate={nextWeek} shifts={nextWeekShifts}/>
+          {manager&&(
+            <div className="card">
+              <div style={{fontSize:13,color:'#6b7280'}}>Store Manager contact</div>
+              <div style={{fontWeight:600}}>{manager.first_name} {manager.last_name}</div>
+              <a href={`https://wa.me/${manager.phone?.replace(/\D/g,'')}`} style={{color:'#6366f1',fontSize:13}}>WhatsApp: {manager.phone}</a>
+            </div>
+          )}
+        </>
+      )}
+      {tab==='hours'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div className="card">
+            <div style={{fontSize:13,color:'#6b7280',marginBottom:6}}>This week</div>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+              <span style={{fontWeight:700,fontSize:22}}>{weekHours.toFixed(1)}h</span>
+              <span style={{color:'#6b7280'}}>/ {user.contract_hours_per_week}h</span>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{width:`${Math.min(100,weekHours/user.contract_hours_per_week*100)}%`}}/>
+            </div>
+            {weekHours>user.contract_hours_per_week&&<div className="alert alert-warn" style={{marginTop:8}}>Over contract hours by {(weekHours-user.contract_hours_per_week).toFixed(1)}h</div>}
+          </div>
+          <div className="card">
+            <div style={{fontSize:13,color:'#6b7280',marginBottom:6}}>This month</div>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+              <span style={{fontWeight:700,fontSize:22}}>{monthHours.toFixed(1)}h</span>
+              <span style={{color:'#6b7280'}}>/ {monthlyContract}h</span>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{width:`${Math.min(100,monthHours/monthlyContract*100)}%`}}/>
+            </div>
+          </div>
+          <div className="card">
+            <div style={{fontSize:13,color:'#6b7280',marginBottom:4}}>Contract</div>
+            <div><strong>{user.contract_hours_per_week}h/week</strong> · {user.contract_type} · €{user.hourly_rate}/h</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BACK OFFICE ──────────────────────────────────────────────────────────────
+function BackOfficeView(){
+  const[tab,setTab]=useState('dashboard');
+  return(
+    <div>
+      <h1 style={{fontSize:20,fontWeight:700,marginBottom:4}}>Back Office</h1>
+      <div style={{display:'flex',gap:8,marginBottom:16}}>
+        <button className={`btn btn-sm ${tab==='dashboard'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('dashboard')}>Dashboard</button>
+        <button className={`btn btn-sm ${tab==='revenue'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('revenue')}>Revenue Input</button>
+        <button className={`btn btn-sm ${tab==='reports'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('reports')}>Reports</button>
+      </div>
+      {tab==='dashboard'&&<LaborDashboard/>}
+      {tab==='revenue'&&<RevenueInput/>}
+      {tab==='reports'&&<ReportsView/>}
+    </div>
+  );
+}
+
+function RevenueInput(){
+  const[storeId,setStoreId]=useState('');
+  const[date2,setDate2]=useState(addDays(today(),-1));
+  const[amount,setAmount]=useState('');
+  const[bulk,setBulk]=useState(false);
+  const[bulkAmounts,setBulkAmounts]=useState({});
+  const[msg,setMsg]=useState('');
+
+  function saveRevenue(sid,d,amt){
+    if(!amt||isNaN(Number(amt)))return;
+    if(d>today()){alert('Cannot enter revenue for future dates');return}
+    const all=load(SK.revenues,[]);
+    const idx=all.findIndex(r=>r.store_id===Number(sid)&&r.date===d);
+    const rec={id:idx>=0?all[idx].id:uuid(),store_id:Number(sid),date:d,revenue_amount:Number(amt)};
+    if(idx>=0)all[idx]=rec;else all.push(rec);
+    save(SK.revenues,all);
+  }
+
+  function handleSingle(e){
+    e.preventDefault();
+    if(!storeId){alert('Select a store');return}
+    saveRevenue(storeId,date2,amount);
+    setMsg('Saved!');setTimeout(()=>setMsg(''),2000);
+  }
+
+  function handleBulk(e){
+    e.preventDefault();
+    Object.entries(bulkAmounts).forEach(([sid,amt])=>saveRevenue(sid,date2,amt));
+    setMsg('All saved!');setTimeout(()=>setMsg(''),2000);
+  }
+
+  return(
+    <div className="card" style={{maxWidth:600}}>
+      <h2 style={{fontSize:16,fontWeight:700,marginBottom:12}}>Daily Revenue Input</h2>
+      {msg&&<div className="alert alert-success">{msg}</div>}
+      <div style={{marginBottom:12}}>
+        <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,fontWeight:500}}>
+          <input type="checkbox" checked={bulk} onChange={e=>setBulk(e.target.checked)}/>
+          Bulk mode (all stores)
+        </label>
+      </div>
+      <div className="form-group">
+        <label>Date</label>
+        <input type="date" value={date2} onChange={e=>setDate2(e.target.value)} max={today()}/>
+      </div>
+      {!bulk?(
+        <form onSubmit={handleSingle}>
+          <div className="form-group">
+            <label>Store</label>
+            <select value={storeId} onChange={e=>setStoreId(e.target.value)}>
+              <option value="">— select store —</option>
+              {STORES.map(s=><option key={s.id} value={s.id}>{s.name} ({s.city})</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Revenue (€)</label>
+            <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} min={0} step={0.01} placeholder="0.00"/>
+          </div>
+          <button type="submit" className="btn btn-primary">Save Revenue</button>
+        </form>
+      ):(
+        <form onSubmit={handleBulk}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {STORES.map(s=>{
+              const rev=load(SK.revenues,[]).find(r=>r.store_id===s.id&&r.date===date2);
+              return(
+                <div key={s.id} className="form-group" style={{margin:0}}>
+                  <label style={{fontSize:12}}>{s.name}</label>
+                  <input type="number" placeholder={rev?`€${rev.revenue_amount} (saved)`:'0.00'} value={bulkAmounts[s.id]||''} onChange={e=>setBulkAmounts(p=>({...p,[s.id]:e.target.value}))} min={0} step={0.01}/>
+                </div>
+              );
+            })}
+          </div>
+          <button type="submit" className="btn btn-primary" style={{marginTop:12}}>Save All</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function LaborDashboard(){
+  const[range,setRange]=useState('week');
+  const[filterStore,setFilterStore]=useState('all');
+  const now=new Date();
+
+  function getDateRange(){
+    if(range==='day'){return{start:today(),end:today()}}
+    if(range==='week'){const s=getMonday(today());return{start:s,end:addDays(s,6)}}
+    const s=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const e=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
+    return{start:s,end:e};
+  }
+  const{start,end}=getDateRange();
+  const shifts=load(SK.shifts,[]);
+  const revenues=load(SK.revenues,[]);
+  const employees=load(SK.employees,[]);
+
+  function getStoreStats(storeId){
+    const storeShifts=shifts.filter(s=>s.store_id===storeId&&s.date>=start&&s.date<=end);
+    const storeRevs=revenues.filter(r=>r.store_id===storeId&&r.date>=start&&r.date<=end);
+    const totalCost=storeShifts.reduce((acc,sh)=>{
+      const emp=employees.find(e=>e.id===sh.employee_id);
+      return acc+(emp?workedHours(sh.start_time,sh.end_time,sh.break_minutes)*emp.hourly_rate:0);
+    },0);
+    const totalHours=storeShifts.reduce((acc,sh)=>acc+workedHours(sh.start_time,sh.end_time,sh.break_minutes),0);
+    const totalRev=storeRevs.reduce((acc,r)=>acc+r.revenue_amount,0);
+    const laborPct=totalRev>0?totalCost/totalRev*100:null;
+    return{storeId,shifts:storeShifts.length,hours:totalHours,cost:totalCost,revenue:totalRev,laborPct,staffCount:new Set(storeShifts.map(s=>s.employee_id)).size};
+  }
+
+  const activeStores=filterStore==='all'?STORES:STORES.filter(s=>s.id===Number(filterStore));
+  const stats=activeStores.map(s=>getStoreStats(s.id));
+  const totalCost=stats.reduce((a,s)=>a+s.cost,0);
+  const totalRev=stats.reduce((a,s)=>a+s.revenue,0);
+  const avgLaborPct=totalRev>0?totalCost/totalRev*100:null;
+
+  return(
+    <div>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16,alignItems:'center'}}>
+        {['day','week','month'].map(r=>(
+          <button key={r} className={`btn btn-sm ${range===r?'btn-primary':'btn-secondary'}`} onClick={()=>setRange(r)} style={{textTransform:'capitalize'}}>{r}</button>
+        ))}
+        <select value={filterStore} onChange={e=>setFilterStore(e.target.value)} style={{fontSize:13,padding:'5px 10px',borderRadius:8,border:'1px solid #d1d5db'}}>
+          <option value="all">All stores</option>
+          {STORES.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+      {/* Metric cards */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:12,marginBottom:16}}>
+        <div className="metric-card">
+          <div style={{fontSize:12,color:'#6b7280',marginBottom:4}}>Total Labor Cost</div>
+          <div style={{fontSize:22,fontWeight:700}}>€{totalCost.toFixed(0)}</div>
+        </div>
+        <div className="metric-card">
+          <div style={{fontSize:12,color:'#6b7280',marginBottom:4}}>Total Revenue</div>
+          <div style={{fontSize:22,fontWeight:700}}>€{totalRev.toFixed(0)}</div>
+        </div>
+        <div className="metric-card">
+          <div style={{fontSize:12,color:'#6b7280',marginBottom:4}}>Avg Labor %</div>
+          <div style={{fontSize:22,fontWeight:700,color:avgLaborPct&&avgLaborPct>LABOR_WARNING_PCT?'#b91c1c':'#15803d'}}>
+            {avgLaborPct!=null?avgLaborPct.toFixed(1)+'%':'N/A'}
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="scrollable">
+          <table className="data-table" style={{minWidth:600}}>
+            <thead>
+              <tr>
+                <th>Store</th>
+                <th>City</th>
+                <th>Staff</th>
+                <th>Hours</th>
+                <th>Labor Cost</th>
+                <th>Revenue</th>
+                <th>Labor %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map(s=>{
+                const store=STORES.find(st=>st.id===s.storeId);
+                const highLabor=s.laborPct!=null&&s.laborPct>LABOR_WARNING_PCT;
+                return(
+                  <tr key={s.storeId}>
+                    <td style={{fontWeight:500}}>{store?.name}</td>
+                    <td style={{color:'#6b7280'}}>{store?.city}</td>
+                    <td>{s.staffCount}</td>
+                    <td>{s.hours.toFixed(1)}h</td>
+                    <td>€{s.cost.toFixed(0)}</td>
+                    <td>{s.revenue>0?`€${s.revenue.toFixed(0)}`:<span style={{color:'#9ca3af'}}>—</span>}</td>
+                    <td style={{fontWeight:600,color:highLabor?'#b91c1c':'inherit'}}>
+                      {s.laborPct!=null?s.laborPct.toFixed(1)+'%':'—'}
+                      {highLabor&&<span style={{marginLeft:4}}>⚠️</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportsView(){
+  const shifts=load(SK.shifts,[]);
+  const revenues=load(SK.revenues,[]);
+  const employees=load(SK.employees,[]);
+
+  // Build last 4 weeks of data per store
+  const weeks=Array.from({length:4},(_,i)=>addDays(getMonday(today()),-7*i)).reverse();
+
+  const data=STORES.map(store=>{
+    const weekData=weeks.map(wk=>{
+      const end=addDays(wk,6);
+      const wShifts=shifts.filter(s=>s.store_id===store.id&&s.date>=wk&&s.date<=end);
+      const wRevs=revenues.filter(r=>r.store_id===store.id&&r.date>=wk&&r.date<=end);
+      const cost=wShifts.reduce((a,s)=>{const e=employees.find(x=>x.id===s.employee_id);return a+(e?workedHours(s.start_time,s.end_time,s.break_minutes)*e.hourly_rate:0)},0);
+      const rev=wRevs.reduce((a,r)=>a+r.revenue_amount,0);
+      const pct=rev>0?cost/rev*100:null;
+      return{wk,cost,rev,pct};
+    });
+    const latestPct=weekData[weekData.length-1].pct;
+    return{store,weekData,latestPct};
+  });
+
+  const highLaborStores=data.filter(d=>d.latestPct!=null&&d.latestPct>LABOR_WARNING_PCT);
+
+  return(
+    <div>
+      {highLaborStores.length>0&&(
+        <div className="alert alert-error" style={{marginBottom:12}}>
+          <strong>High labor cost alert:</strong> {highLaborStores.map(d=>d.store.name).join(', ')} exceed {LABOR_WARNING_PCT}% labor threshold.
+        </div>
+      )}
+      <div className="card">
+        <h3 style={{fontWeight:700,marginBottom:12,fontSize:15}}>Weekly Labor % — Last 4 Weeks</h3>
+        <div className="scrollable">
+          <table className="data-table" style={{minWidth:550}}>
+            <thead>
+              <tr>
+                <th>Store</th>
+                {weeks.map(w=><th key={w}>{fmtDateShort(w)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map(({store,weekData})=>(
+                <tr key={store.id}>
+                  <td style={{fontWeight:500}}>{store.name}</td>
+                  {weekData.map(({wk,pct})=>(
+                    <td key={wk} style={{color:pct!=null&&pct>LABOR_WARNING_PCT?'#b91c1c':pct!=null?'#15803d':'#9ca3af',fontWeight:pct!=null&&pct>LABOR_WARNING_PCT?700:400}}>
+                      {pct!=null?pct.toFixed(1)+'%':'—'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SUPER ADMIN ──────────────────────────────────────────────────────────────
+function SuperAdminView(){
+  const[tab,setTab]=useState('users');
+  return(
+    <div>
+      <h1 style={{fontSize:20,fontWeight:700,marginBottom:4}}>Administration</h1>
+      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+        <button className={`btn btn-sm ${tab==='users'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('users')}>Users</button>
+        <button className={`btn btn-sm ${tab==='stores'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('stores')}>Stores</button>
+        <button className={`btn btn-sm ${tab==='overview'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('overview')}>Overview</button>
+        <button className={`btn btn-sm ${tab==='schedule'?'btn-primary':'btn-secondary'}`} onClick={()=>setTab('schedule')}>Schedule View</button>
+      </div>
+      {tab==='users'&&<UserManagement/>}
+      {tab==='stores'&&<StoreManagement/>}
+      {tab==='overview'&&<SystemOverview/>}
+      {tab==='schedule'&&<AdminScheduleView/>}
+    </div>
+  );
+}
+
+function UserModal({emp,onSave,onClose}){
+  const[form,setForm]=useState(emp||{first_name:'',last_name:'',email:'',password:'',phone:'',date_of_birth:'',role:'PizzaMaker',contract_type:'hourly',contract_hours_per_week:24,hourly_rate:13,store_id:1,user_role:'employee',is_active:true});
+  function set(k,v){setForm(p=>({...p,[k]:v}))}
+  function handleSave(e){
+    e.preventDefault();
+    if(!form.first_name||!form.email||!form.password){alert('Fill required fields');return}
+    onSave({...form,id:emp?.id||uuid(),store_id:Number(form.store_id),contract_hours_per_week:Number(form.contract_hours_per_week),hourly_rate:Number(form.hourly_rate)});
+  }
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+      <div className="modal" style={{maxWidth:520}}>
+        <h2>{emp?'Edit Employee':'Add Employee'}</h2>
+        <form onSubmit={handleSave}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div className="form-group"><label>First Name *</label><input value={form.first_name} onChange={e=>set('first_name',e.target.value)} required/></div>
+            <div className="form-group"><label>Last Name</label><input value={form.last_name} onChange={e=>set('last_name',e.target.value)}/></div>
+          </div>
+          <div className="form-group"><label>Email *</label><input type="email" value={form.email} onChange={e=>set('email',e.target.value)} required/></div>
+          <div className="form-group"><label>Password *</label><input type="password" value={form.password} onChange={e=>set('password',e.target.value)} required/></div>
+          <div className="form-group"><label>Phone (WhatsApp)</label><input value={form.phone} onChange={e=>set('phone',e.target.value)}/></div>
+          <div className="form-group"><label>Date of Birth</label><input type="date" value={form.date_of_birth} onChange={e=>set('date_of_birth',e.target.value)}/></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div className="form-group"><label>Shift Role</label><select value={form.role} onChange={e=>set('role',e.target.value)}>{SHIFT_ROLES.map(r=><option key={r}>{r}</option>)}</select></div>
+            <div className="form-group"><label>System Role</label><select value={form.user_role} onChange={e=>set('user_role',e.target.value)}>{USER_ROLES.map(r=><option key={r}>{r}</option>)}</select></div>
+          </div>
+          <div className="form-group"><label>Store</label><select value={form.store_id} onChange={e=>set('store_id',e.target.value)}>{STORES.map(s=><option key={s.id} value={s.id}>{s.name} ({s.city})</option>)}</select></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            <div className="form-group"><label>Contract</label><select value={form.contract_type} onChange={e=>set('contract_type',e.target.value)}>{CONTRACT_TYPES.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div className="form-group"><label>Hours/week</label><input type="number" value={form.contract_hours_per_week} onChange={e=>set('contract_hours_per_week',e.target.value)} min={0}/></div>
+            <div className="form-group"><label>€/hour</label><input type="number" value={form.hourly_rate} onChange={e=>set('hourly_rate',e.target.value)} min={0} step={0.01}/></div>
+          </div>
+          <div className="form-group"><label style={{display:'flex',gap:8,alignItems:'center'}}><input type="checkbox" checked={form.is_active} onChange={e=>set('is_active',e.target.checked)}/> Active</label></div>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:8}}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function UserManagement(){
+  const[employees,setEmployees]=useState(()=>load(SK.employees,[]));
+  const[modal,setModal]=useState(null);
+  const[search,setSearch]=useState('');
+  const{refreshUser}=useAuth();
+
+  function reload(){setEmployees(load(SK.employees,[]))}
+  function saveEmp(emp){
+    const all=load(SK.employees,[]);
+    const idx=all.findIndex(e=>e.id===emp.id);
+    if(idx>=0)all[idx]=emp;else all.push(emp);
+    save(SK.employees,all);
+    reload();
+    refreshUser();
+    setModal(null);
+  }
+  function deactivate(id){
+    if(!confirm('Deactivate this employee?'))return;
+    const all=load(SK.employees,[]).map(e=>e.id===id?{...e,is_active:false}:e);
+    save(SK.employees,all);
+    reload();
+  }
+
+  const filtered=employees.filter(e=>{
+    const q=search.toLowerCase();
+    return !q||(e.first_name+' '+e.last_name+' '+e.email).toLowerCase().includes(q);
+  });
+
+  const roleBadge={employee:'badge-gray',store_manager:'badge-blue',backoffice:'badge-purple',superadmin:'badge-red'};
+  const shiftBadge={Manager:'badge-blue',PizzaMaker:'badge-red',Rider:'badge-green'};
+
+  return(
+    <div>
+      <div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center',flexWrap:'wrap'}}>
+        <input placeholder="Search employees..." value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,minWidth:180,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13}}/>
+        <button className="btn btn-primary btn-sm" onClick={()=>setModal({emp:null})}>+ Add Employee</button>
+      </div>
+      <div className="card">
+        <div className="scrollable">
+          <table className="data-table" style={{minWidth:700}}>
+            <thead><tr><th>Name</th><th>Email</th><th>Store</th><th>Shift Role</th><th>System Role</th><th>Contract</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {filtered.map(e=>(
+                <tr key={e.id}>
+                  <td style={{fontWeight:500}}>{e.first_name} {e.last_name}</td>
+                  <td style={{color:'#6b7280',fontSize:12}}>{e.email}</td>
+                  <td style={{fontSize:12}}>{STORES.find(s=>s.id===e.store_id)?.name||'—'}</td>
+                  <td><span className={`badge ${shiftBadge[e.role]||'badge-gray'}`}>{e.role}</span></td>
+                  <td><span className={`badge ${roleBadge[e.user_role]||'badge-gray'}`}>{e.user_role}</span></td>
+                  <td style={{fontSize:12}}>{e.contract_hours_per_week}h · €{e.hourly_rate}/h</td>
+                  <td><span className={`badge ${e.is_active?'badge-green':'badge-gray'}`}>{e.is_active?'Active':'Inactive'}</span></td>
+                  <td>
+                    <button className="btn btn-sm btn-secondary" onClick={()=>setModal({emp:e})} style={{marginRight:4}}>Edit</button>
+                    {e.is_active&&<button className="btn btn-sm btn-danger" onClick={()=>deactivate(e.id)}>Deactivate</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {modal&&<UserModal emp={modal.emp} onSave={saveEmp} onClose={()=>setModal(null)}/>}
+    </div>
+  );
+}
+
+function StoreManagement(){
+  const[selected,setSelected]=useState(null);
+  const[settings,setSettings]=useState(null);
+  const[msg,setMsg]=useState('');
+
+  function openStore(s){
+    setSelected(s);
+    setSettings({...getStoreSettings(s.id)});
+  }
+  function saveSettings(){
+    saveStoreSettings(selected.id,settings);
+    setMsg('Saved!');setTimeout(()=>setMsg(''),2000);
+  }
+  function set(k,v){setSettings(p=>({...p,[k]:v}))}
+
+  return(
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,alignItems:'start'}}>
+      <div className="card">
+        <h3 style={{fontWeight:700,marginBottom:10,fontSize:15}}>Stores ({STORES.length})</h3>
+        <div style={{display:'flex',flexDirection:'column',gap:4,maxHeight:400,overflowY:'auto'}}>
+          {STORES.map(s=>(
+            <div key={s.id} onClick={()=>openStore(s)} style={{padding:'8px 10px',borderRadius:8,cursor:'pointer',background:selected?.id===s.id?'#eef2ff':'#f9fafb',border:selected?.id===s.id?'1px solid #6366f1':'1px solid transparent',fontSize:13}}>
+              <div style={{fontWeight:500}}>{s.name}</div>
+              <div style={{color:'#6b7280',fontSize:11}}>{s.city}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {selected&&settings&&(
+        <div className="card">
+          <h3 style={{fontWeight:700,marginBottom:12,fontSize:15}}>{selected.name} — Settings</h3>
+          {msg&&<div className="alert alert-success">{msg}</div>}
+          <div className="form-group"><label>Opening Time</label><input type="time" value={settings.opening_time} onChange={e=>set('opening_time',e.target.value)}/></div>
+          <div className="form-group"><label>Closing Time</label><input type="time" value={settings.closing_time} onChange={e=>set('closing_time',e.target.value)}/></div>
+          <div className="form-group">
+            <label>Operating Days</label>
+            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d,i)=>{
+              const dayNum=[1,2,3,4,5,6,0][i];
+              const checked=(settings.operating_days||[]).includes(dayNum);
+              return(
+                <label key={d} style={{display:'inline-flex',alignItems:'center',gap:4,marginRight:10,fontSize:13,fontWeight:400}}>
+                  <input type="checkbox" checked={checked} onChange={e=>{const days=settings.operating_days||[];set('operating_days',e.target.checked?[...days,dayNum]:days.filter(x=>x!==dayNum))}}/>
+                  {d}
+                </label>
+              );
+            })}
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={saveSettings}>Save</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SystemOverview(){
+  const employees=load(SK.employees,[]);
+  const activeByStore=STORES.map(s=>({store:s,count:employees.filter(e=>e.store_id===s.id&&e.is_active).length}));
+  const total=employees.filter(e=>e.is_active).length;
+  return(
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,marginBottom:16}}>
+        <div className="metric-card"><div style={{fontSize:12,color:'#6b7280'}}>Total Active Staff</div><div style={{fontSize:24,fontWeight:700}}>{total}</div></div>
+        <div className="metric-card"><div style={{fontSize:12,color:'#6b7280'}}>Stores</div><div style={{fontSize:24,fontWeight:700}}>{STORES.length}</div></div>
+      </div>
+      <div className="card">
+        <div className="scrollable">
+          <table className="data-table">
+            <thead><tr><th>Store</th><th>City</th><th>Active Staff</th></tr></thead>
+            <tbody>
+              {activeByStore.map(({store,count})=>(
+                <tr key={store.id}>
+                  <td style={{fontWeight:500}}>{store.name}</td>
+                  <td style={{color:'#6b7280'}}>{store.city}</td>
+                  <td><span className={`badge ${count>0?'badge-green':'badge-gray'}`}>{count}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminScheduleView(){
+  const[storeId,setStoreId]=useState(1);
+  const[weekStart,setWeekStart]=useState(getMonday(today()));
+  const store=STORES.find(s=>s.id===storeId);
+  return(
+    <div>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16,alignItems:'center'}}>
+        <select value={storeId} onChange={e=>setStoreId(Number(e.target.value))} style={{padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13}}>
+          {STORES.map(s=><option key={s.id} value={s.id}>{s.name} ({s.city})</option>)}
+        </select>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setWeekStart(addDays(weekStart,-7))}>&larr; Prev</button>
+        <span style={{fontSize:13,fontWeight:600}}>{fmtDateShort(weekStart)} – {fmtDateShort(addDays(weekStart,6))}</span>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setWeekStart(addDays(weekStart,7))}>Next &rarr;</button>
+        <button className="btn btn-secondary btn-sm" onClick={()=>setWeekStart(getMonday(today()))}>Today</button>
+      </div>
+      <div className="card">
+        <WeekGrid storeId={storeId} weekStart={weekStart} readOnly={false}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function AppShell(){
+  const{user,logout}=useAuth();
+
+  const tabs=useMemo(()=>{
+    if(user.user_role==='employee') return[
+      {id:'schedule',label:'My Schedule',short:'Schedule',icon:'schedule'},
+    ];
+    if(user.user_role==='store_manager') return[
+      {id:'schedule',label:'Schedule',short:'Schedule',icon:'schedule'},
+    ];
+    if(user.user_role==='backoffice') return[
+      {id:'dashboard',label:'Dashboard',short:'Dashboard',icon:'dashboard'},
+      {id:'revenue',label:'Revenue Input',short:'Revenue',icon:'revenue'},
+      {id:'reports',label:'Reports',short:'Reports',icon:'hours'},
+    ];
+    // superadmin
+    return[
+      {id:'admin',label:'Administration',short:'Admin',icon:'users'},
+      {id:'schedule',label:'Schedule View',short:'Schedule',icon:'schedule'},
+      {id:'bo',label:'Back Office',short:'Finance',icon:'dashboard'},
+    ];
+  },[user.user_role]);
+
+  const[activeTab,setActiveTab]=useState(tabs[0].id);
+
+  function renderContent(){
+    if(user.user_role==='employee')return<EmployeeView/>;
+    if(user.user_role==='store_manager')return<ManagerView/>;
+    if(user.user_role==='backoffice'){
+      if(activeTab==='revenue')return<div><h1 style={{fontSize:20,fontWeight:700,marginBottom:16}}>Revenue Input</h1><RevenueInput/></div>;
+      if(activeTab==='reports')return<div><h1 style={{fontSize:20,fontWeight:700,marginBottom:16}}>Reports</h1><ReportsView/></div>;
+      return<BackOfficeView/>;
+    }
+    if(user.user_role==='superadmin'){
+      if(activeTab==='schedule')return<AdminScheduleView/>;
+      if(activeTab==='bo')return<BackOfficeView/>;
+      return<SuperAdminView/>;
+    }
+    return<div>Unknown role</div>;
+  }
+
+  const sidebarTabs=tabs.map(t=>({...t}));
+
+  return(
+    <div className="app-layout">
+      <Sidebar tabs={sidebarTabs} activeTab={activeTab} setTab={setActiveTab} user={user} logout={logout}/>
+      <main className="main-content">
+        {renderContent()}
+      </main>
+      <BottomNav tabs={tabs} activeTab={activeTab} setTab={setActiveTab}/>
+    </div>
+  );
+}
+
+function App(){
+  const{user}=useAuth();
+  if(!user)return<LoginPage/>;
+  return<AppShell/>;
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+seedIfEmpty();
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<AuthProvider><App/></AuthProvider>);
+</script>
+</body>
+</html>

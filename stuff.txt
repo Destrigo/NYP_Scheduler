@@ -1,0 +1,24 @@
+Full build is done. The project lives in nyp-scheduler/.
+
+To get it running:
+
+
+cd nyp-scheduler
+cp .env.example .env       # add your Supabase URL + anon key
+npm install
+npm run dev
+In Supabase SQL Editor, run schema.sql then seed.sql — the seed uses CURRENT_DATE so the grid is always populated with the current week's shifts.
+
+What's new vs the single-file draft:
+
+Draft	Full build
+Structure	1 file	40 files, proper component tree
+Data	localStorage (per browser)	Supabase PostgreSQL (shared, multi-user)
+Notifications	alert() / confirm()	Toast + ConfirmDialog context
+Charts	None	SVG bar chart + SVG line chart (no library)
+Week grid	Basic	Drag-to-copy, today highlight, utilisation bar, week summary panel
+Employee view	Plain list	Card-based calendar
+Dashboard	Table only	Metrics with period comparison + bar chart
+Reports	Table only	Line chart (8-week trend, store selector)
+Auth	sessionStorage only	Supabase query + sessionStorage
+Deploy	Open file in browser	Vercel + Supabase (one command)
