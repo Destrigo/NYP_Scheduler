@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import FormGroup from '../components/shared/FormGroup.jsx'
 
+const DEMO_ACCOUNTS = [
+  { label: 'Super Admin',    email: 'admin@nyp.nl',      password: 'admin123'   },
+  { label: 'Store Manager',  email: 'manager@nyp.nl',    password: 'manager123' },
+  { label: 'Back Office',    email: 'backoffice@nyp.nl', password: 'back123'    },
+  { label: 'Employee',       email: 'ahmed@nyp.nl',      password: 'emp123'     },
+]
+
 export default function LoginPage() {
   const { login } = useAuth()
   const [email, setEmail]   = useState('')
@@ -13,6 +20,14 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     const error = await login(email, pw)
+    setLoading(false)
+    if (error) setErr(error)
+  }
+
+  async function quickLogin(account) {
+    setErr('')
+    setLoading(true)
+    const error = await login(account.email, account.password)
     setLoading(false)
     if (error) setErr(error)
   }
@@ -60,12 +75,32 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: 24, padding: '14px 16px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 }}>
-          <strong style={{ color: 'var(--text)' }}>Demo accounts</strong><br />
-          admin@nyp.nl / admin123 — Super Admin<br />
-          manager@nyp.nl / manager123 — Store Manager<br />
-          backoffice@nyp.nl / back123 — Back Office<br />
-          ahmed@nyp.nl / emp123 — Employee
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Demo accounts
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {DEMO_ACCOUNTS.map(account => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => quickLogin(account)}
+                disabled={loading}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', background: 'var(--surface-2)',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer', fontSize: 13, color: 'var(--text)',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}
+              >
+                <span style={{ fontWeight: 600 }}>{account.label}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{account.email}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
