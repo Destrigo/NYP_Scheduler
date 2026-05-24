@@ -16,6 +16,7 @@ export default function WeekGrid({ storeId, weekStart, readOnly = false, onWeekD
   const [weekStatus,  setWeekStatus]  = useState('draft')
   const [storeSettings, setStoreSettings] = useState({ opening_time: '11:00', closing_time: '23:00' })
   const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState(null)
   const [dragShift,   setDragShift]   = useState(null)
   const [dragOver,    setDragOver]    = useState(null)
   const [modal,       setModal]       = useState(null)
@@ -25,12 +26,15 @@ export default function WeekGrid({ storeId, weekStart, readOnly = false, onWeekD
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     const [empsRes, shiftsRes, statusRes, storeRes] = await Promise.all([
       supabase.from('employees').select('*').eq('store_id', storeId).eq('is_active', true).order('first_name'),
       supabase.from('shifts').select('*').eq('store_id', storeId).gte('date', weekStart).lte('date', weekEnd),
       supabase.from('week_schedules').select('*').eq('store_id', storeId).eq('week_start_date', weekStart).maybeSingle(),
       supabase.from('stores').select('opening_time,closing_time').eq('id', storeId).maybeSingle(),
     ])
+    const err = empsRes.error || shiftsRes.error || storeRes.error
+    if (err) { setLoadError(err.message); setLoading(false); return }
     setEmployees(empsRes.data || [])
     setShifts(shiftsRes.data || [])
     setWeekStatus(statusRes.data?.status || 'draft')
@@ -55,7 +59,8 @@ export default function WeekGrid({ storeId, weekStart, readOnly = false, onWeekD
       const minor = checkMinorViolation(emp, s.end_time)
       if (minor) warns.push('Minor hours')
     })
-    const weekHrs = shifts.filter(s => s.employee_id === emp.id)
+    const weekHrs = shifts
+      .filter(s => s.employee_id === emp.id && s.date >= weekStart && s.date <= weekEnd)
       .reduce((a, s) => a + workedHours(s.start_time, s.end_time, s.break_minutes), 0)
     if (weekHrs > emp.contract_hours_per_week && emp.contract_hours_per_week > 0) warns.push('Over contract')
     return warns
@@ -74,7 +79,9 @@ export default function WeekGrid({ storeId, weekStart, readOnly = false, onWeekD
   }
 
   function getEmpWeekStats(emp) {
-    const empShifts = shifts.filter(s => s.employee_id === emp.id)
+    const empShifts = shifts.filter(s =>
+      s.employee_id === emp.id && s.date >= weekStart && s.date <= weekEnd
+    )
     const hrs = empShifts.reduce((a, s) => a + workedHours(s.start_time, s.end_time, s.break_minutes), 0)
     const pct = emp.contract_hours_per_week > 0 ? hrs / emp.contract_hours_per_week : 0
     return { hrs, pct }
@@ -149,7 +156,8 @@ export default function WeekGrid({ storeId, weekStart, readOnly = false, onWeekD
     setDragShift(null)
   }
 
-  if (loading) return <div className="loading-center"><div className="loading-spinner" /> Loading schedule…</div>
+  if (loading)   return <div className="loading-center"><div className="loading-spinner" /> Loading schedule…</div>
+  if (loadError) return <div className="alert alert-error">Failed to load schedule: {loadError}</div>
 
   return (
     <div>

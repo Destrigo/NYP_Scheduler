@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase.js'
 import { STORES } from '../../constants.js'
+import { addDays, today } from '../../utils.js'
 import Avatar from '../../components/shared/Avatar.jsx'
 
 export default function SystemOverview() {
@@ -14,10 +15,11 @@ export default function SystemOverview() {
       const { data: emps } = await supabase.from('employees').select('*').eq('is_active', true)
       setEmployees(emps || [])
 
-      // Last scheduled date per employee
+      // Last scheduled date per employee — last 365 days only to avoid full table scan
       const { data: shifts } = await supabase
         .from('shifts')
         .select('employee_id, date')
+        .gte('date', addDays(today(), -365))
         .order('date', { ascending: false })
 
       const byEmp = {}

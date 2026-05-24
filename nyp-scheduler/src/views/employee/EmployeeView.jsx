@@ -7,19 +7,25 @@ import EmptyState from '../../components/shared/EmptyState.jsx'
 
 export default function EmployeeView() {
   const { user } = useAuth()
-  const [tab,    setTab]    = useState('schedule')
-  const [shifts, setShifts] = useState([])
-  const [manager, setManager] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [tab,       setTab]       = useState('schedule')
+  const [shifts,    setShifts]    = useState([])
+  const [manager,   setManager]   = useState(null)
+  const [loading,   setLoading]   = useState(true)
+  const [loadError, setLoadError] = useState(null)
 
   const store = STORES.find(s => s.id === user.store_id)
   const thisWeek = getMonday(today())
   const nextWeek = addDays(thisWeek, 7)
   const twoWeeks = [thisWeek, nextWeek]
 
+  const now        = new Date()
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
+
   useEffect(() => {
     async function load() {
       setLoading(true)
+      setLoadError(null)
       // Only show published weeks
       const { data: pubWeeks } = await supabase
         .from('week_schedules')
@@ -29,10 +35,11 @@ export default function EmployeeView() {
 
       const pubSet = new Set((pubWeeks || []).map(w => w.week_start_date))
 
-      const from = thisWeek
+      // Fetch from start of current month so monthHrs is computed on full-month data
+      const from = monthStart < thisWeek ? monthStart : thisWeek
       const to   = addDays(nextWeek, 6)
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('shifts')
         .select('*')
         .eq('employee_id', user.id)
@@ -40,6 +47,7 @@ export default function EmployeeView() {
         .lte('date', to)
         .order('date')
 
+      if (error) { setLoadError(error.message); setLoading(false); return }
       setShifts((data || []).filter(s => pubSet.has(getMonday(s.date))))
 
       const { data: mgr } = await supabase
@@ -54,22 +62,16 @@ export default function EmployeeView() {
     load()
   }, [user.id, user.store_id])
 
-  function getShiftForDay(weekStart, date) {
-    return shifts.find(s => s.date === date)
-  }
-
-  // Hours
-  const now = new Date()
+  // Hours — monthStart/monthEnd defined above alongside the fetch range
   const weekHrs  = shifts.filter(s => s.date >= thisWeek && s.date <= addDays(thisWeek, 6))
     .reduce((a, s) => a + workedHours(s.start_time, s.end_time, s.break_minutes), 0)
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
-  const monthHrs   = shifts.filter(s => s.date >= monthStart && s.date <= monthEnd)
+  const monthHrs = shifts.filter(s => s.date >= monthStart && s.date <= monthEnd)
     .reduce((a, s) => a + workedHours(s.start_time, s.end_time, s.break_minutes), 0)
   const contractWeek  = user.contract_hours_per_week || 0
   const contractMonth = Math.round(contractWeek * 52 / 12)
 
-  if (loading) return <div className="loading-center"><div className="loading-spinner" /></div>
+  if (loading)   return <div className="loading-center"><div className="loading-spinner" /></div>
+  if (loadError) return <div className="alert alert-error" style={{ margin: 20 }}>Failed to load schedule: {loadError}</div>
 
   return (
     <div>

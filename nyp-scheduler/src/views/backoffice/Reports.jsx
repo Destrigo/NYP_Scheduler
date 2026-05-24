@@ -15,6 +15,7 @@ export default function Reports() {
   const [tableData, setTableData]   = useState([])
   const [xLabels,   setXLabels]     = useState([])
   const [loading,   setLoading]     = useState(true)
+  const [loadError, setLoadError]   = useState(null)
 
   // Weeks: last NUM_WEEKS weeks ending with current week
   const weeks = Array.from({ length: NUM_WEEKS }, (_, i) =>
@@ -24,6 +25,7 @@ export default function Reports() {
   useEffect(() => {
     async function load() {
       setLoading(true)
+      setLoadError(null)
       const from = weeks[0]
       const to   = addDays(weeks[NUM_WEEKS - 1], 6)
 
@@ -32,6 +34,9 @@ export default function Reports() {
         supabase.from('daily_revenues').select('*').gte('date', from).lte('date', to),
         supabase.from('employees').select('id, hourly_rate, store_id'),
       ])
+
+      const err = shiftsRes.error || revsRes.error || empsRes.error
+      if (err) { setLoadError(err.message); setLoading(false); return }
 
       const shifts = shiftsRes.data || []
       const revs   = revsRes.data   || []
@@ -76,7 +81,7 @@ export default function Reports() {
       setLoading(false)
     }
     load()
-  }, [selectedStores.size]) // reload when store selection changes
+  }, [Array.from(selectedStores).sort().join(',')]) // reload when store selection actually changes
 
   function sortedTable() {
     return [...tableData].sort((a, b) => {
@@ -107,7 +112,8 @@ export default function Reports() {
 
   const highStores = tableData.filter(d => d.pct != null && d.pct > LABOR_WARNING_PCT)
 
-  if (loading) return <div className="loading-center"><div className="loading-spinner" /> Loading…</div>
+  if (loading)   return <div className="loading-center"><div className="loading-spinner" /> Loading…</div>
+  if (loadError) return <div className="alert alert-error">Failed to load reports: {loadError}</div>
 
   return (
     <div>

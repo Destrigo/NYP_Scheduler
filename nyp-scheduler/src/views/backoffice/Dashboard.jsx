@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [data,        setData]        = useState([])
   const [prevData,    setPrevData]    = useState([])
   const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState(null)
 
   function getDateRange(period, offset = 0) {
     const now = new Date()
@@ -33,6 +34,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       setLoading(true)
+      setLoadError(null)
       const { start, end }        = getDateRange(range, 0)
       const { start: ps, end: pe} = getDateRange(range, 1)
 
@@ -43,6 +45,9 @@ export default function Dashboard() {
         supabase.from('shifts').select('*').gte('date', ps).lte('date', pe),
         supabase.from('daily_revenues').select('*').gte('date', ps).lte('date', pe),
       ])
+
+      const err = shiftsRes.error || revsRes.error || empsRes.error
+      if (err) { setLoadError(err.message); setLoading(false); return }
 
       const shifts = shiftsRes.data || []
       const revs   = revsRes.data   || []
@@ -91,7 +96,8 @@ export default function Dashboard() {
 
   const chartData = filtered.map(d => ({ label: d.store.name, value: d.laborPct ?? 0 }))
 
-  if (loading) return <div className="loading-center"><div className="loading-spinner" /> Loading…</div>
+  if (loading)   return <div className="loading-center"><div className="loading-spinner" /> Loading…</div>
+  if (loadError) return <div className="alert alert-error">Failed to load dashboard: {loadError}</div>
 
   return (
     <div>

@@ -30,7 +30,7 @@ export default function AdminScheduleView() {
       </div>
 
       <div className="card">
-        <WeekGrid storeId={storeId} weekStart={weekStart} readOnly={false} />
+        <WeekGrid key={storeId} storeId={storeId} weekStart={weekStart} readOnly={false} />
       </div>
     </div>
   )
